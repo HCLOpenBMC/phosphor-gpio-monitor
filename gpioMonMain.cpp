@@ -78,6 +78,8 @@ int main(int argc, char** argv)
     file.close();
 
     std::vector<std::unique_ptr<phosphor::gpio::GpioMonitor>> gpios;
+    std::vector<std::unique_ptr<phosphor::gpio::IPMI>> ipmi;
+
 
     for (auto& obj : gpioMonObj)
     {
@@ -103,79 +105,128 @@ int main(int argc, char** argv)
         /* target to start */
         std::string target;
 
-        if (obj.find("LineName") == obj.end())
-        {
-            /* If there is no line Name defined then gpio num nd chip
-             * id must be defined. GpioNum is integer mapping to the
-             * GPIO key configured by the kernel
-             */
-            if (obj.find("GpioNum") == obj.end() ||
-                obj.find("ChipId") == obj.end())
+        uint8_t host;
+        uint8_t netfn;
+        uint8_t cmd;
+        std::vector<uint8_t> data;
+        enum
+	{
+	    IPMI,
+	    GPIO
+	}type1;
+        type1 = GPIO;
+
+	if (obj.find("Type") != obj.end())
+	{
+	    type == obj["Type"];
+	}
+
+	if (type == type1)
+	{
+
+            if (obj.find("LineName") == obj.end())
             {
-                log<level::ERR>(
-                    "Failed to find line name or gpio number",
-                    entry("GPIO_JSON_FILE_NAME=%s", gpioFileName.c_str()));
-                return -1;
+                /* If there is no line Name defined then gpio num nd chip
+                * id must be defined. GpioNum is integer mapping to the
+                * GPIO key configured by the kernel
+                */
+                if (obj.find("GpioNum") == obj.end() ||
+                    obj.find("ChipId") == obj.end())
+                {
+                    log<level::ERR>(
+                        "Failed to find line name or gpio number",
+                        entry("GPIO_JSON_FILE_NAME=%s", gpioFileName.c_str()));
+                    return -1;
+                }
+
+                std::string chipIdStr = obj["ChipId"];
+                int gpioNum = obj["GpioNum"];
+
+                lineMsg += std::to_string(gpioNum);
+
+                /* Get the GPIO line */
+                line = gpiod_line_get(chipIdStr.c_str(), gpioNum);
+            }
+            else
+            {
+                /* Find the GPIO line */
+                std::string lineName = obj["LineName"];
+                lineMsg += lineName;
+                line = gpiod_line_find(lineName.c_str());
             }
 
-            std::string chipIdStr = obj["ChipId"];
-            int gpioNum = obj["GpioNum"];
-
-            lineMsg += std::to_string(gpioNum);
-
-            /* Get the GPIO line */
-            line = gpiod_line_get(chipIdStr.c_str(), gpioNum);
-        }
-        else
-        {
-            /* Find the GPIO line */
-            std::string lineName = obj["LineName"];
-            lineMsg += lineName;
-            line = gpiod_line_find(lineName.c_str());
-        }
-
-        if (line == NULL)
-        {
-            errMsg = "Failed to find the " + lineMsg;
-            log<level::ERR>(errMsg.c_str());
-            return -1;
-        }
-
-        /* Get event to be monitored, if it is not defined then
-         * Both rising falling edge will be monitored.
-         */
-        if (obj.find("EventMon") != obj.end())
-        {
-            std::string eventStr = obj["EventMon"];
-            auto findEvent = phosphor::gpio::polarityMap.find(eventStr);
-            if (findEvent == phosphor::gpio::polarityMap.end())
+            if (line == NULL)
             {
-                errMsg = "Incorrect GPIO monitor event defined " + lineMsg;
+                errMsg = "Failed to find the " + lineMsg;
                 log<level::ERR>(errMsg.c_str());
                 return -1;
             }
 
-            config.request_type = findEvent->second;
-        }
+            /* Get event to be monitored, if it is not defined then
+            * Both rising falling edge will be monitored.
+            */
+            if (obj.find("EventMon") != obj.end())
+            {
+                std::string eventStr = obj["EventMon"];
+                auto findEvent = phosphor::gpio::polarityMap.find(eventStr);
+                if (findEvent == phosphor::gpio::polarityMap.end())
+                {
+                    errMsg = "Incorrect GPIO monitor event defined " + lineMsg;
+                    log<level::ERR>(errMsg.c_str());
+                    return -1;
+                }
 
-        /* Get flag if monitoring needs to continue after first event */
-        if (obj.find("Continue") != obj.end())
+                config.request_type = findEvent->second;
+            }
+
+            /* Get flag if monitoring needs to continue after first event */
+            if (obj.find("Continue") != obj.end())
+            {
+                flag = obj["Continue"];
+            }
+
+            /* Parse out target argument. It is fine if the user does not
+            * pass this if they are not interested in calling into any target
+            * on meeting a condition.
+            */
+            if (obj.find("Target") != obj.end())
+            {
+                target = obj["Target"];
+            }
+
+            /* Create a monitor object and let it do all the rest */
+            gpios.push_back(std::make_unique<phosphor::gpio::GpioMonitor>(
+                line, config, io, target, lineMsg, flag));
+        }
+        else
         {
-            flag = obj["Continue"];
-        }
+            /* Get host value */
+            if (obj.find("Host") != obj.end())
+            {
+                host = obj["Host"];
+            }
 
-        /* Parse out target argument. It is fine if the user does not
-         * pass this if they are not interested in calling into any target
-         * on meeting a condition.
-         */
-        if (obj.find("Target") != obj.end())
-        {
-            target = obj["Target"];
-        }
+            /* Get netfunction value */
+            if (obj.find("Netfn") != obj.end())
+            {
+                netfn = obj["Netfn"];
+            }
 
-        /* Create a monitor object and let it do all the rest */
-        gpios.push_back(std::make_unique<phosphor::gpio::GpioMonitor>(
-            line, config, io, target, lineMsg, flag));
+            /* Get command value */
+            if (obj.find("Cmd") != obj.end())
+            {
+                cmd = obj["Cmd"];
+            }
+
+            if (obj.find("CmdData") != obj.end())
+            {
+                data = obj["CmdData"];
+            }
+
+            /* Create a monitor object and let it do all the rest */
+            ipmi.push_back(std::make_unique<phosphor::gpio::IPMI>(
+                host, netfn, cmd, data));
+        }
     }
     io.run();
 
