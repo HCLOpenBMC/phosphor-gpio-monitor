@@ -47,7 +47,7 @@ class GpioMonitor
     IPMI(uint8_t host, uint8_t netfn, uint8_t cmd, uint8_t data) :
         host(host), netfn(netfn), cmd(cmd), cmddata(data)
     {
-        requestGPIOEvents();
+        requestIPMIEvents();
     };
 
   private:
@@ -86,6 +86,7 @@ class GpioMonitor
     /** @brief Handle the GPIO event and starts configured target */
     void gpioEventHandler();
 
+    int requestIPMIEvents();
     void powerGoodHandler();
     int getPowerGoodStatus();
     int sendIPMBRequest();

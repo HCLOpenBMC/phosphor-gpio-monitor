@@ -119,5 +119,56 @@ int GpioMonitor::requestGPIOEvents()
 
     return 0;
 }
+
+int IPMI::requestIPMIEvents()
+{
+   powerGoodHandler();
+}
+
+int IPMI::powerGoodHandler()
+{
+    //std::cerr<<"Check power good handler\n";
+    boost::asio::steady_timer timer{fb_ipmi::io, std::chrono::milliseconds{200}};
+    timer.async_wait([](const boost::system::error_code &ec)
+    {
+        miscIface->set_property("Power_Good1", getPowerGoodStatus(0));
+        miscIface->set_property("Power_Good2", getPowerGoodStatus(1));
+    });
+    powerGoodHandler();
+}
+
+void IPMI::getPowerGoodStatus()
+{
+    std::vector<uint8_t> respData; 
+
+    sendIPMBRequest(host, netFn, cmd, cmdData, respData);
+    uint8_t GpiosStatus = respData[3];
+    int pwrGdStatusFromIPMI = (GpiosStatus & CPUPwrGdMask) && (GpiosStatus & PCHPwrGdMask);
+    return pwrGdStatusFromIPMI;
+}
+
+void IPMI::sendIPMBRequest()
+{
+    auto method = conn->new_method_call("xyz.openbmc_project.Ipmi.Channel.Ipmb",
+                                       "/xyz/openbmc_project/Ipmi/Channel/Ipmb",
+                                       "org.openbmc.Ipmb", "sendRequest");
+    method.append(host, netFn, lun, cmd, cmdData);
+
+    auto reply = conn->call(method);
+    if (reply.is_method_error())
+    {    
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+            "Error reading from IPMB");
+        return -1;
+    }    
+
+    respType resp;
+    reply.read(resp);
+
+    respData =
+        std::move(std::get<std::remove_reference_t<decltype(respData)>>(resp));
+
+    return 0;
+}
 } // namespace gpio
 } // namespace phosphor
