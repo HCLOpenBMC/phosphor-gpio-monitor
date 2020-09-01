@@ -78,8 +78,6 @@ int main(int argc, char** argv)
     file.close();
 
     std::vector<std::unique_ptr<phosphor::gpio::GpioMonitor>> gpios;
-    std::vector<std::unique_ptr<phosphor::gpio::IPMI>> ipmi;
-
 
     for (auto& obj : gpioMonObj)
     {
@@ -105,23 +103,24 @@ int main(int argc, char** argv)
         /* target to start */
         std::string target;
 
+        std::string type;
         uint8_t host;
         uint8_t netfn;
         uint8_t cmd;
         std::vector<uint8_t> data;
-        enum
+        enum Types
 	{
 	    IPMI,
 	    GPIO
-	}type1;
-        type1 = GPIO;
+	};
+//        Types Type = Types.GPIO;
 
 	if (obj.find("Type") != obj.end())
 	{
 	    type == obj["Type"];
 	}
 
-	if (type == type1)
+	if (type == "GPIO")
 	{
 
             if (obj.find("LineName") == obj.end())
@@ -218,14 +217,14 @@ int main(int argc, char** argv)
                 cmd = obj["Cmd"];
             }
 
-            if (obj.find("CmdData") != obj.end())
-            {
-                data = obj["CmdData"];
-            }
+//           if (obj.find("CmdData") != obj.end())
+//            {
+//                data = obj["CmdData"];
+//            }
 
             /* Create a monitor object and let it do all the rest */
-            ipmi.push_back(std::make_unique<phosphor::gpio::IPMI>(
-                host, netfn, cmd, data));
+            gpios.push_back(std::make_unique<phosphor::gpio::GpioMonitor>(
+                host, netfn, cmd));
         }
     }
     io.run();

@@ -120,39 +120,57 @@ int GpioMonitor::requestGPIOEvents()
     return 0;
 }
 
-int IPMI::requestIPMIEvents()
+void GpioMonitor::requestIPMIEvents()
 {
    powerGoodHandler();
 }
 
-int IPMI::powerGoodHandler()
+int GpioMonitor::powerGoodHandler()
 {
     //std::cerr<<"Check power good handler\n";
-    boost::asio::steady_timer timer{fb_ipmi::io, std::chrono::milliseconds{200}};
+   /* boost::asio::steady_timer timer{fb_ipmi::io, std::chrono::milliseconds{200}};
     timer.async_wait([](const boost::system::error_code &ec)
     {
         miscIface->set_property("Power_Good1", getPowerGoodStatus(0));
         miscIface->set_property("Power_Good2", getPowerGoodStatus(1));
-    });
+    });*/
     powerGoodHandler();
 }
 
-void IPMI::getPowerGoodStatus()
+int GpioMonitor::getPowerGoodStatus()
 {
     std::vector<uint8_t> respData; 
+    uint8_t CPUPwrGdMask;
+    uint8_t PCHPwrGdMask;
 
-    sendIPMBRequest(host, netFn, cmd, cmdData, respData);
+    sendIPMBRequest();
     uint8_t GpiosStatus = respData[3];
     int pwrGdStatusFromIPMI = (GpiosStatus & CPUPwrGdMask) && (GpiosStatus & PCHPwrGdMask);
     return pwrGdStatusFromIPMI;
 }
 
-void IPMI::sendIPMBRequest()
+int GpioMonitor::sendIPMBRequest()
 {
+    if (!target.empty())
+    {
+        auto bus = sdbusplus::bus::new_default();
+        auto method = bus.new_method_call(SYSTEMD_SERVICE, SYSTEMD_ROOT,
+                                          SYSTEMD_INTERFACE, "StartUnit");
+        method.append(target);
+        method.append("replace");
+
+        bus.call_noreply(method);
+    }
+
+    /*uint8_t resp;
+    uint8_t respType;
+    uint8_t respData;
+    uint8_t lun;
+
     auto method = conn->new_method_call("xyz.openbmc_project.Ipmi.Channel.Ipmb",
                                        "/xyz/openbmc_project/Ipmi/Channel/Ipmb",
                                        "org.openbmc.Ipmb", "sendRequest");
-    method.append(host, netFn, lun, cmd, cmdData);
+    method.append(host, netfn, lun, cmd, cmddata);
 
     auto reply = conn->call(method);
     if (reply.is_method_error())
@@ -160,13 +178,14 @@ void IPMI::sendIPMBRequest()
         phosphor::logging::log<phosphor::logging::level::ERR>(
             "Error reading from IPMB");
         return -1;
-    }    
+    }
 
     respType resp;
     reply.read(resp);
 
     respData =
         std::move(std::get<std::remove_reference_t<decltype(respData)>>(resp));
+    */
 
     return 0;
 }

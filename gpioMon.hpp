@@ -44,8 +44,8 @@ class GpioMonitor
         requestGPIOEvents();
     };
 
-    IPMI(uint8_t host, uint8_t netfn, uint8_t cmd, uint8_t data) :
-        host(host), netfn(netfn), cmd(cmd), cmddata(data)
+    GpioMonitor(uint8_t thost, uint8_t tnetfn, uint8_t tcmd) :
+        host(thost), netfn(tnetfn), cmd(tcmd)
     {
         requestIPMIEvents();
     };
@@ -72,7 +72,7 @@ class GpioMonitor
     uint8_t host;
     uint8_t netfn;
     uint8_t cmd;
-    std::vector<uint8_t> cmddata;
+    uint8_t cmddata;
 
     /** @brief register handler for gpio event
      *
@@ -86,8 +86,8 @@ class GpioMonitor
     /** @brief Handle the GPIO event and starts configured target */
     void gpioEventHandler();
 
-    int requestIPMIEvents();
-    void powerGoodHandler();
+    void requestIPMIEvents();
+    int powerGoodHandler();
     int getPowerGoodStatus();
     int sendIPMBRequest();
 };
