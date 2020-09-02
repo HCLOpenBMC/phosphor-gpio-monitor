@@ -107,7 +107,7 @@ int main(int argc, char** argv)
         uint8_t host;
         uint8_t netfn;
         uint8_t cmd;
-        std::vector<uint8_t> data;
+        uint8_t data;
         enum Types
 	{
 	    IPMI,
@@ -217,14 +217,14 @@ int main(int argc, char** argv)
                 cmd = obj["Cmd"];
             }
 
-//           if (obj.find("CmdData") != obj.end())
-//            {
-//                data = obj["CmdData"];
-//            }
+            if (obj.find("CmdData") != obj.end())
+            {
+                data = obj["CmdData"];
+            }
 
             /* Create a monitor object and let it do all the rest */
             gpios.push_back(std::make_unique<phosphor::gpio::GpioMonitor>(
-                host, netfn, cmd));
+                host, netfn, cmd, data));
         }
     }
     io.run();

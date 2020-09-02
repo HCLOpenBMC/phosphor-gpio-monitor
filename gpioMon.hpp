@@ -44,8 +44,11 @@ class GpioMonitor
         requestGPIOEvents();
     };
 
-    GpioMonitor(uint8_t thost, uint8_t tnetfn, uint8_t tcmd) :
-        host(thost), netfn(tnetfn), cmd(tcmd)
+    GpioMonitor(uint8_t thost, uint8_t tnetfn, uint8_t tcmd, uint8_t data) :
+        host(thost),
+        netfn(tnetfn),
+        cmd(tcmd),
+        cmddata(data)
     {
         requestIPMIEvents();
     };
@@ -87,7 +90,7 @@ class GpioMonitor
     void gpioEventHandler();
 
     void requestIPMIEvents();
-    int powerGoodHandler();
+    void powerGoodHandler();
     int getPowerGoodStatus();
     int sendIPMBRequest();
 };

@@ -125,7 +125,7 @@ void GpioMonitor::requestIPMIEvents()
    powerGoodHandler();
 }
 
-int GpioMonitor::powerGoodHandler()
+void GpioMonitor::powerGoodHandler()
 {
     //std::cerr<<"Check power good handler\n";
    /* boost::asio::steady_timer timer{fb_ipmi::io, std::chrono::milliseconds{200}};
